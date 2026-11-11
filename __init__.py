@@ -1,4 +1,4 @@
-"""Load H3 video LoRAs on H3-Image without incompatible output patches."""
+"""Load H3 video LoRAs on H3-Image or H3 video models."""
 
 import logging
 import json
@@ -17,19 +17,25 @@ _UNSUPPORTED = re.compile(
 )
 
 
-def _apply_filtered_lora(model, name, strength):
+def _apply_lora(model, name, strength, filter_image):
     path = folder_paths.get_full_path_or_raise("loras", name)
     lora, metadata = comfy.utils.load_torch_file(path, safe_load=True, return_metadata=True)
-    filtered = {key: value for key, value in lora.items() if not _UNSUPPORTED.search(key)}
+    filtered = (
+        {key: value for key, value in lora.items() if not _UNSUPPORTED.search(key)}
+        if filter_image else lora
+    )
     patched, _ = comfy.sd.load_lora_for_models(
         model, None, filtered, strength, 0, lora_metadata=metadata
     )
     return patched, len(filtered), len(lora) - len(filtered)
 
 
-def _require_h3_image(model):
-    if not isinstance(model.model, comfy.model_base.MiniMaxH3Image):
-        raise ValueError("This loader requires a MiniMax H3-Image diffusion model.")
+def _h3_model_mode(model):
+    if isinstance(model.model, comfy.model_base.MiniMaxH3Image):
+        return True
+    if isinstance(model.model, comfy.model_base.MiniMaxH3):
+        return False
+    raise ValueError("This loader requires a MiniMax H3-Image or H3 video diffusion model.")
 
 
 class H3VideoLoraForImage(io.ComfyNode):
@@ -39,7 +45,7 @@ class H3VideoLoraForImage(io.ComfyNode):
             node_id="H3VideoLoraForImage",
             display_name="H3 Video LoRA for H3 Image",
             category="model/loaders/minimax",
-            description="Loads a MiniMax H3 video LoRA into H3-Image, omitting audio and incompatible final output patches.",
+            description="Loads a MiniMax H3 video LoRA. Filters audio/output patches for H3-Image; keeps them for H3 video.",
             inputs=[
                 io.Model.Input("model"),
                 io.Combo.Input("lora_name", options=folder_paths.get_filename_list("loras")),
@@ -50,11 +56,11 @@ class H3VideoLoraForImage(io.ComfyNode):
 
     @classmethod
     def execute(cls, model, lora_name, strength_model) -> io.NodeOutput:
-        _require_h3_image(model)
+        filter_image = _h3_model_mode(model)
         if strength_model == 0:
             return io.NodeOutput(model, "LoRA strength is zero; no patches applied.")
 
-        patched, kept, removed = _apply_filtered_lora(model, lora_name, strength_model)
+        patched, kept, removed = _apply_lora(model, lora_name, strength_model, filter_image)
         report = f"Kept {kept} LoRA entries; removed {removed} audio/output entries."
         logging.info("H3 Image LoRA %s: %s", lora_name, report)
         return io.NodeOutput(patched, report)
@@ -67,7 +73,7 @@ class H3VideoLoraStackForImage(io.ComfyNode):
             node_id="H3VideoLoraStackForImage",
             display_name="H3 Image LoRA Stack",
             category="model/loaders/minimax",
-            description="Apply several H3 video LoRAs to H3-Image, filtering incompatible patches from each.",
+            description="Apply several H3 video LoRAs. Filter incompatible patches for H3-Image; keep them for H3 video.",
             inputs=[
                 io.Model.Input("model"),
                 io.String.Input("loras", default="[]", multiline=True),
@@ -77,7 +83,7 @@ class H3VideoLoraStackForImage(io.ComfyNode):
 
     @classmethod
     def execute(cls, model, loras) -> io.NodeOutput:
-        _require_h3_image(model)
+        filter_image = _h3_model_mode(model)
         try:
             rows = json.loads(loras)
         except (TypeError, ValueError) as exc:
@@ -96,7 +102,7 @@ class H3VideoLoraStackForImage(io.ComfyNode):
             strength = float(row.get("strength", 1.0))
             if strength == 0:
                 continue
-            model, kept, removed = _apply_filtered_lora(model, name, strength)
+            model, kept, removed = _apply_lora(model, name, strength, filter_image)
             reports.append(f"{name}: kept {kept}, removed {removed}")
         report = "\n".join(reports) if reports else "No enabled LoRAs applied."
         logging.info("H3 Image LoRA stack: %s", report)

@@ -1,6 +1,6 @@
 # H3 Video LoRA for H3 Image
 
-A ComfyUI loader for trying MiniMax H3 video LoRAs with **MiniMax H3-Image**. It removes LoRA entries for the absent audio branch and the differently sized final image output layer before ComfyUI applies the remaining entries. The original LoRA file and base model are not edited.
+A ComfyUI loader for trying MiniMax H3 video LoRAs with **MiniMax H3-Image or H3 video**. With H3-Image, it removes LoRA entries for the absent audio branch and the differently sized final image output layer before ComfyUI applies the remaining entries. With an H3 video model, it keeps those entries. The original LoRA file and base model are not edited.
 
 This is a compatibility filter, not a conversion or retraining tool. A video LoRA can load cleanly and still have an undesirable effect on still images.
 
@@ -21,18 +21,18 @@ No additional Python packages are required beyond ComfyUI. The package uses Comf
 
 ## Use
 
-1. Load a **MiniMax H3-Image** diffusion checkpoint in your image workflow.
+1. Load a **MiniMax H3-Image or H3 video** diffusion checkpoint in the matching image or video workflow.
 2. Add **H3 Image LoRA Stack** from `model/loaders/minimax`. For a single LoRA, you can also use **H3 Video LoRA for H3 Image**.
 3. Connect the checkpoint's `MODEL` output to the node's `model` input.
 4. Press **+ LoRA**, search and tick one or more files, then press **Add selected**. Click a row's file button to replace it, or drag it horizontally to scrub strength (hold Shift for finer changes). Type an exact strength or use the −/+ buttons in the same row. Enable or disable it with the checkbox, drag the grip to change application order, or right-click for row actions. The **i** button displays embedded safetensors metadata when available.
 5. Connect the node's `MODEL` output wherever the checkpoint model was previously connected.
 6. The optional `STRING` output reports how many entries each enabled LoRA kept and removed. You can connect it to a text display node, or read the same summary in the ComfyUI log.
 
-Place LoRA files in any folder ComfyUI recognizes as `loras`. The picker searches ComfyUI's own LoRA registry and supports selecting several files at once. Type multiple words in any order, such as `h3 realism`; every word must appear somewhere in the folder path or filename, ignoring case and punctuation. Selections remain checked while you change the search. The picker shows match and selection counts. **↻** refreshes the file list. **▤** saves or loads stack templates in this browser. The node checks that its input is a MiniMax H3-Image model; it does not load the image checkpoint or VAE for you.
+Place LoRA files in any folder ComfyUI recognizes as `loras`. The picker searches ComfyUI's own LoRA registry and supports selecting several files at once. Type multiple words in any order, such as `h3 realism`; every word must appear somewhere in the folder path or filename, ignoring case and punctuation. Selections remain checked while you change the search. The picker shows match and selection counts. **↻** refreshes the file list. **▤** saves or loads stack templates in this browser. The node detects whether its input is MiniMax H3-Image or H3 video; it does not load the checkpoint or VAE for you.
 
 ## What gets filtered
 
-The two checked local H3 video checkpoints (`ref2va` and `fl2va`, pruned INT8 ConvRot) have 932 identically named and shaped tensors. The checked H3-Image checkpoint shares names and shapes with 926 of those 932 tensors. The six differences are:
+Filtering applies only when the input is H3-Image. For an H3 video input, all LoRA entries are passed to ComfyUI's normal loader, including audio and final output entries. The two checked local H3 video checkpoints (`ref2va` and `fl2va`, pruned INT8 ConvRot) have 932 identically named and shaped tensors. The checked H3-Image checkpoint shares names and shapes with 926 of those 932 tensors. The six differences are:
 
 | Target | H3-Image relationship | Action |
 | --- | --- | --- |
@@ -49,6 +49,7 @@ The filter runs when the node executes, before denoising. It does not change the
 - Matching tensor names and shapes establish *structural* compatibility only. They do not prove that a LoRA's learned visual effect transfers to H3-Image.
 - Motion and video acceleration LoRAs may be ineffective or degrade still images even when their shared-layer entries load.
 - This node applies diffusion-model LoRA weights only. It does not patch the text encoder.
+- H3 video LoRAs are passed through on H3 video models, but a LoRA can still contain keys or shapes incompatible with a particular checkpoint. ComfyUI's normal loader may warn or fail in that case.
 - The filter is specific to the checked MiniMax H3 video-to-H3-Image relationship. Other model families need their own compatibility analysis.
 
 ## Development and verification
