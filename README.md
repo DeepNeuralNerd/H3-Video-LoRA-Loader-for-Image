@@ -4,7 +4,7 @@ A ComfyUI loader for trying MiniMax H3 video LoRAs with **MiniMax H3-Image**. It
 
 This is a compatibility filter, not a conversion or retraining tool. A video LoRA can load cleanly and still have an undesirable effect on still images.
 
-The package includes **H3 Image LoRA Stack**, a power loader inspired by the workflow of Ausboss's LoRA Loader. Its frontend and loading code are original. Each row has an enable switch, file button, model strength, remove button, and drag grip. The toolbar has saved templates, a master switch that restores the prior row selection, a file-list refresh button, and **+ LoRA**. The original single-LoRA node remains available for existing workflows.
+The package includes **H3 Image LoRA Stack**, a power loader inspired by the workflow of Ausboss's LoRA Loader and rgthree's Power Lora Loader. Its frontend and loading code are original. Each row has an enable switch, file button, model strength with quick −/+ buttons, an info button, remove button, and drag grip. Right-click a row for move, duplicate, and toggle actions. The toolbar has saved templates, a master switch that restores the prior row selection, a file-list refresh button, and **+ LoRA**. The original single-LoRA node remains available for existing workflows.
 
 ## Install
 
@@ -22,7 +22,7 @@ No additional Python packages are required beyond ComfyUI. The package uses Comf
 1. Load a **MiniMax H3-Image** diffusion checkpoint in your image workflow.
 2. Add **H3 Image LoRA Stack** from `model/loaders/minimax`. For a single LoRA, you can also use **H3 Video LoRA for H3 Image**.
 3. Connect the checkpoint's `MODEL` output to the node's `model` input.
-4. Press **+ LoRA**, search and tick one or more files, then press **Add selected**. Click a row's file button to replace it, or drag it horizontally to scrub strength (hold Shift for finer changes). Type an exact strength in the same row, enable or disable it with the checkbox, and drag the grip to change application order.
+4. Press **+ LoRA**, search and tick one or more files, then press **Add selected**. Click a row's file button to replace it, or drag it horizontally to scrub strength (hold Shift for finer changes). Type an exact strength or use the −/+ buttons in the same row. Enable or disable it with the checkbox, drag the grip to change application order, or right-click for row actions. The **i** button displays embedded safetensors metadata when available.
 5. Connect the node's `MODEL` output wherever the checkpoint model was previously connected.
 6. The optional `STRING` output reports how many entries each enabled LoRA kept and removed. You can connect it to a text display node, or read the same summary in the ComfyUI log.
 

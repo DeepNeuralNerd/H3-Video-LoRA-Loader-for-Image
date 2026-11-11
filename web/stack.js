@@ -4,7 +4,7 @@ import { app } from "../../../scripts/app.js";
 const NODE_ID = "H3VideoLoraStackForImage";
 const style = document.createElement("style");
 style.textContent = `
-.h3-lora-stack { box-sizing:border-box; width:100%; min-width:310px; padding:8px; color:var(--fg-color,#eee); font:12px system-ui,sans-serif; }
+.h3-lora-stack { box-sizing:border-box; width:100%; min-width:410px; padding:8px; color:var(--fg-color,#eee); font:12px system-ui,sans-serif; }
 .h3-lora-stack * { box-sizing:border-box; }
 .h3-lora-head,.h3-lora-row { display:flex; align-items:center; gap:6px; }
 .h3-lora-head { padding-bottom:8px; border-bottom:1px solid #6667; margin-bottom:7px; }
@@ -25,6 +25,8 @@ style.textContent = `
 .h3-lora-choice { display:flex; align-items:center; gap:7px; width:100%; padding:4px; text-align:left; color:inherit; background:transparent; border:0; cursor:pointer; overflow-wrap:anywhere; }
 .h3-lora-choice:hover { background:#ffffff24; }
 .h3-lora-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:7px; }
+.h3-lora-detail { padding:8px; margin:4px 0 8px; border:1px solid #8888; border-radius:6px; background:#181c25; overflow-wrap:anywhere; }
+.h3-lora-detail pre { max-height:180px; overflow:auto; white-space:pre-wrap; font-size:11px; }
 `;
 document.head.append(style);
 
@@ -78,13 +80,16 @@ function mount(node) {
   let query = "";
   let remembered = null;
   let templateOpen = false;
+  let menuIndex = -1;
+  let infoIndex = -1;
+  let infoData = null;
   const templateKey = "h3-image-lora-stack-templates";
   const save = () => {
     storage.value = JSON.stringify(rows);
     node.setDirtyCanvas(true, true);
     app.graph?.change();
   };
-  const resize = () => node.setSize([Math.max(node.size[0], 350), 145 + rows.length * 39 + (pickerOpen ? 280 : 0) + (templateOpen ? 110 : 0)]);
+  const resize = () => node.setSize([Math.max(node.size[0], 430), 145 + rows.length * 39 + (pickerOpen ? 280 : 0) + (templateOpen ? 110 : 0) + (menuIndex >= 0 ? 80 : 0) + (infoIndex >= 0 ? 160 : 0)]);
 
   const control = (label, title, action) => {
     const item = document.createElement("button");
@@ -106,6 +111,20 @@ function mount(node) {
     await refreshFiles();
     draw();
     panel.querySelector(".h3-lora-search")?.focus();
+  }
+
+  async function showInfo(index) {
+    menuIndex = -1;
+    infoIndex = index;
+    infoData = null;
+    draw();
+    const name = rows[index]?.name;
+    if (!name) return;
+    try {
+      const response = await api.fetchApi(`/view_metadata/loras?filename=${encodeURIComponent(name)}`);
+      if (response.ok) infoData = await response.json();
+    } catch (error) { console.warn("H3 Image LoRA Stack: metadata unavailable", error); }
+    if (infoIndex === index && rows[index]?.name === name) draw();
   }
 
   function drawPicker() {
@@ -244,6 +263,12 @@ function mount(node) {
     rows.forEach((row, index) => {
       const line = document.createElement("div");
       line.className = `h3-lora-row${row.enabled ? "" : " off"}`;
+      line.oncontextmenu = (event) => {
+        event.preventDefault();
+        menuIndex = menuIndex === index ? -1 : index;
+        infoIndex = -1;
+        draw();
+      };
       line.ondragover = (event) => { event.preventDefault(); line.classList.add("drag-over"); };
       line.ondragleave = () => line.classList.remove("drag-over");
       line.ondrop = (event) => {
@@ -304,14 +329,48 @@ function mount(node) {
       strength.value = String(row.strength);
       strength.title = "Model strength";
       strength.onchange = () => { const value = Number(strength.value); if (Number.isFinite(value)) { row.strength = value; save(); draw(); } };
+      const nudge = (amount) => { row.strength = Math.round((row.strength + amount) * 100) / 100; save(); draw(); };
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "h3-lora-button";
       remove.title = "Remove row";
       remove.textContent = "×";
       remove.onclick = () => { rows.splice(index, 1); save(); draw(); };
-      line.append(grip, enabled, file, strength, remove);
+      line.append(grip, enabled, file,
+        control("−", "Decrease strength by 0.05", () => nudge(-0.05)),
+        strength,
+        control("+", "Increase strength by 0.05", () => nudge(0.05)),
+        control("i", "Show embedded LoRA metadata", () => showInfo(index)),
+        remove);
       panel.append(line);
+      if (menuIndex === index) {
+        const menu = document.createElement("div");
+        menu.className = "h3-lora-detail h3-lora-actions";
+        const move = (direction) => {
+          const next = index + direction;
+          if (next < 0 || next >= rows.length) return;
+          [rows[index], rows[next]] = [rows[next], rows[index]];
+          menuIndex = -1; save(); draw();
+        };
+        menu.append(
+          control("↑", "Move row up", () => move(-1)),
+          control("↓", "Move row down", () => move(1)),
+          control("Duplicate", "Copy this LoRA row", () => { rows.splice(index + 1, 0, { ...row }); menuIndex = -1; save(); draw(); }),
+          control(row.enabled ? "Disable" : "Enable", "Toggle this LoRA", () => { row.enabled = !row.enabled; menuIndex = -1; save(); draw(); }),
+          control("Close", "Close row actions", () => { menuIndex = -1; draw(); }),
+        );
+        panel.append(menu);
+      }
+      if (infoIndex === index) {
+        const detail = document.createElement("div");
+        detail.className = "h3-lora-detail";
+        const heading = document.createElement("strong");
+        heading.textContent = row.name || "No LoRA selected";
+        const body = document.createElement("pre");
+        body.textContent = infoData ? JSON.stringify(infoData, null, 2) : "No embedded safetensors metadata found.";
+        detail.append(heading, body, control("Close", "Close LoRA info", () => { infoIndex = -1; draw(); }));
+        panel.append(detail);
+      }
     });
     if (pickerOpen) panel.append(drawPicker());
     resize();
@@ -320,7 +379,7 @@ function mount(node) {
   node.addDOMWidget("h3_lora_rows", "h3_lora_rows", panel, {
     serialize: false,
     hideOnZoom: false,
-    getMinHeight: () => 80 + rows.length * 39 + (pickerOpen ? 280 : 0) + (templateOpen ? 110 : 0),
+    getMinHeight: () => 80 + rows.length * 39 + (pickerOpen ? 280 : 0) + (templateOpen ? 110 : 0) + (menuIndex >= 0 ? 80 : 0) + (infoIndex >= 0 ? 160 : 0),
   }).serialize = false;
   const originalConfigure = node.onConfigure;
   node.onConfigure = function (...args) {
