@@ -26,7 +26,7 @@ No additional Python packages are required beyond ComfyUI. The package uses Comf
 5. Connect the node's `MODEL` output wherever the checkpoint model was previously connected.
 6. The optional `STRING` output reports how many entries each enabled LoRA kept and removed. You can connect it to a text display node, or read the same summary in the ComfyUI log.
 
-Place LoRA files in any folder ComfyUI recognizes as `loras`. The picker searches ComfyUI's own LoRA registry and supports selecting several files at once. **↻** refreshes that list. **▤** saves or loads stack templates in this browser. The node checks that its input is a MiniMax H3-Image model; it does not load the image checkpoint or VAE for you.
+Place LoRA files in any folder ComfyUI recognizes as `loras`. The picker searches ComfyUI's own LoRA registry and supports selecting several files at once. Type multiple words in any order, such as `h3 realism`; every word must appear somewhere in the folder path or filename, ignoring case and punctuation. Selections remain checked while you change the search. The picker shows match and selection counts. **↻** refreshes the file list. **▤** saves or loads stack templates in this browser. The node checks that its input is a MiniMax H3-Image model; it does not load the image checkpoint or VAE for you.
 
 ## What gets filtered
 

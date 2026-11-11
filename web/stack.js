@@ -29,6 +29,16 @@ style.textContent = `
 document.head.append(style);
 
 let fileNames = [];
+function matchingNames(names, words) {
+  const normalize = (text) => text.normalize("NFKD").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const terms = normalize(words).split(/\s+/).filter(Boolean);
+  return names.filter((name) => {
+    const path = normalize(name);
+    const compact = path.replace(/\s/g, "");
+    return terms.every((term) => path.includes(term) || compact.includes(term));
+  });
+}
+
 async function refreshFiles() {
   try {
     const response = await api.fetchApi("/object_info/LoraLoaderModelOnly");
@@ -104,13 +114,19 @@ function mount(node) {
     const search = document.createElement("input");
     search.type = "text";
     search.className = "h3-lora-search";
-    search.placeholder = replaceIndex < 0 ? "Search and select LoRAs" : "Search replacement LoRA";
+    search.placeholder = "Type words in any order, e.g. h3 realism";
     search.value = query;
+    const status = document.createElement("div");
+    status.className = "h3-lora-empty";
+    status.style.padding = "4px";
     const list = document.createElement("div");
     list.className = "h3-lora-list";
+    let addButton;
     const fill = () => {
       list.replaceChildren();
-      const matches = fileNames.filter((name) => name.toLowerCase().includes(query.toLowerCase()));
+      const matches = matchingNames(fileNames, query);
+      status.textContent = `${matches.length} matches · ${selected.size} selected`;
+      if (addButton) addButton.textContent = replaceIndex < 0 ? `Add ${selected.size} LoRA${selected.size === 1 ? "" : "s"}` : "Replace";
       for (const name of matches.slice(0, 200)) {
         const item = document.createElement("button");
         item.type = "button";
@@ -138,20 +154,25 @@ function mount(node) {
       }
     };
     search.oninput = () => { query = search.value; fill(); };
-    search.onkeydown = (event) => { if (event.key === "Escape") { pickerOpen = false; draw(); } };
+    search.onkeydown = (event) => {
+      if (event.key === "Escape") { pickerOpen = false; draw(); }
+      if (event.key === "Enter" && selected.size && addButton) { event.preventDefault(); addButton.click(); }
+    };
     fill();
     const actions = document.createElement("div");
     actions.className = "h3-lora-actions";
+    addButton = control("Add 0 LoRAs", "Apply selected LoRAs", () => {
+      if (!selected.size) return;
+      if (replaceIndex >= 0) rows[replaceIndex].name = [...selected][0];
+      else for (const name of selected) rows.push({ enabled: true, name, strength: 1 });
+      pickerOpen = false; save(); draw();
+    });
+    addButton.textContent = replaceIndex < 0 ? "Add 0 LoRAs" : "Replace";
     actions.append(
       control("Cancel", "Close picker", () => { pickerOpen = false; draw(); }),
-      control(replaceIndex < 0 ? `Add ${selected.size || "selected"}` : "Replace", "Apply selected LoRAs", () => {
-        if (!selected.size) return;
-        if (replaceIndex >= 0) rows[replaceIndex].name = [...selected][0];
-        else for (const name of selected) rows.push({ enabled: true, name, strength: 1 });
-        pickerOpen = false; save(); draw();
-      }),
+      addButton,
     );
-    box.append(search, list, actions);
+    box.append(search, status, list, actions);
     return box;
   }
 
