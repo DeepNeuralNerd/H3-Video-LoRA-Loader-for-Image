@@ -14,7 +14,7 @@ Clone this repository into `ComfyUI/custom_nodes/` and restart ComfyUI:
 
 ```powershell
 cd path\to\ComfyUI\custom_nodes
-git clone https://github.com/DeepNeuralNerd/ComfyUI-H3-Video-LoRA-for-Image.git
+git clone https://github.com/DeepNeuralNerd/H3-Video-LoRA-Loader-for-Image.git
 ```
 
 No additional Python packages are required beyond ComfyUI. The package uses ComfyUI's V3 node API, so use a current ComfyUI build that supports MiniMax H3-Image and V3 custom nodes.
