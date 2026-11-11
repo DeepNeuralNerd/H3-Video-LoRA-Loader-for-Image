@@ -4,6 +4,8 @@ A ComfyUI loader for trying MiniMax H3 video LoRAs with **MiniMax H3-Image**. It
 
 This is a compatibility filter, not a conversion or retraining tool. A video LoRA can load cleanly and still have an undesirable effect on still images.
 
+The package includes **H3 Image LoRA Stack**, a compact row-based loader inspired by the workflow of Ausboss's LoRA Loader. Its frontend and loading code are original. Each row has an enable switch, searchable LoRA name field, model strength, and remove button; the header has an add button and an all-rows switch. The original single-LoRA node remains available for existing workflows.
+
 ## Install
 
 Clone this repository into `ComfyUI/custom_nodes/` and restart ComfyUI:
@@ -18,13 +20,13 @@ No additional Python packages are required beyond ComfyUI. The package uses Comf
 ## Use
 
 1. Load a **MiniMax H3-Image** diffusion checkpoint in your image workflow.
-2. Add **H3 Video LoRA for H3 Image** from `model/loaders/minimax`.
+2. Add **H3 Image LoRA Stack** from `model/loaders/minimax`. For a single LoRA, you can also use **H3 Video LoRA for H3 Image**.
 3. Connect the checkpoint's `MODEL` output to the node's `model` input.
-4. Pick a MiniMax H3 video LoRA from the `lora_name` menu and set `strength_model`.
-5. Connect the node's `MODEL` output wherever the checkpoint model was previously connected. Chain more loader nodes if needed.
-6. The optional `STRING` output reports how many LoRA entries were kept and removed. You can connect it to a text display node, or read the same summary in the ComfyUI log.
+4. Press **+ LoRA** for each video LoRA. Search for its filename, set strength, and use its checkbox to enable or disable it. Rows apply from top to bottom.
+5. Connect the node's `MODEL` output wherever the checkpoint model was previously connected.
+6. The optional `STRING` output reports how many entries each enabled LoRA kept and removed. You can connect it to a text display node, or read the same summary in the ComfyUI log.
 
-Place LoRA files in any folder ComfyUI recognizes as `loras`. The menu is supplied by ComfyUI's model path registry. The node checks that its input is a MiniMax H3-Image model; it does not load the image checkpoint or VAE for you.
+Place LoRA files in any folder ComfyUI recognizes as `loras`. The stack's searchable list comes from ComfyUI's own LoRA registry; you can also type a filename. The node checks that its input is a MiniMax H3-Image model; it does not load the image checkpoint or VAE for you.
 
 ## What gets filtered
 
@@ -49,7 +51,7 @@ The filter runs when the node executes, before denoising. It does not change the
 
 ## Development and verification
 
-The node is registered through ComfyUI's `comfy_entrypoint()` and has no network access or external dependencies. Its sole source file is [`__init__.py`](./__init__.py).
+Both nodes are registered through ComfyUI's `comfy_entrypoint()`. The Python loader is in [`__init__.py`](./__init__.py); the stack interface is in [`web/stack.js`](./web/stack.js). The frontend queries only the local ComfyUI server for available LoRA filenames. The package has no external Python dependencies.
 
 Verification on the author's local setup used these checkpoints:
 
