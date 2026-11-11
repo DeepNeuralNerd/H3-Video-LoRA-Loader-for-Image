@@ -83,6 +83,8 @@ function mount(node) {
   let menuIndex = -1;
   let infoIndex = -1;
   let infoData = null;
+  const createdAt = performance.now();
+  let escapePicker = null;
   const templateKey = "h3-image-lora-stack-templates";
   const save = () => {
     storage.value = JSON.stringify(rows);
@@ -102,15 +104,34 @@ function mount(node) {
   };
 
   async function openPicker(index = -1) {
+    // ComfyUI can deliver the node-creation click to the new DOM widget.
+    if (performance.now() - createdAt < 350) return;
     replaceIndex = index;
     selected = new Set();
     query = "";
     pickerOpen = true;
     templateOpen = false;
+    if (!escapePicker) {
+      escapePicker = (event) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        closePicker();
+      };
+      window.addEventListener("keydown", escapePicker, true);
+    }
     draw();
     await refreshFiles();
+    if (!pickerOpen) return;
     draw();
     panel.querySelector(".h3-lora-search")?.focus();
+  }
+
+  function closePicker() {
+    pickerOpen = false;
+    if (escapePicker) window.removeEventListener("keydown", escapePicker, true);
+    escapePicker = null;
+    draw();
   }
 
   async function showInfo(index) {
@@ -174,7 +195,6 @@ function mount(node) {
     };
     search.oninput = () => { query = search.value; fill(); };
     search.onkeydown = (event) => {
-      if (event.key === "Escape") { pickerOpen = false; draw(); }
       if (event.key === "Enter" && selected.size && addButton) { event.preventDefault(); addButton.click(); }
     };
     fill();
@@ -184,11 +204,14 @@ function mount(node) {
       if (!selected.size) return;
       if (replaceIndex >= 0) rows[replaceIndex].name = [...selected][0];
       else for (const name of selected) rows.push({ enabled: true, name, strength: 1 });
-      pickerOpen = false; save(); draw();
+      pickerOpen = false;
+      if (escapePicker) window.removeEventListener("keydown", escapePicker, true);
+      escapePicker = null;
+      save(); draw();
     });
     addButton.textContent = replaceIndex < 0 ? "Add 0 LoRAs" : "Replace";
     actions.append(
-      control("Cancel", "Close picker", () => { pickerOpen = false; draw(); }),
+      control("Cancel", "Close picker", closePicker),
       addButton,
     );
     box.append(search, status, list, actions);
@@ -200,7 +223,11 @@ function mount(node) {
 
     const head = document.createElement("div");
     head.className = "h3-lora-head";
-    head.append(control("▤", "Save or load a stack template", () => { templateOpen = !templateOpen; pickerOpen = false; draw(); }));
+    head.append(control("▤", "Save or load a stack template", () => {
+      if (pickerOpen) closePicker();
+      templateOpen = !templateOpen;
+      draw();
+    }));
     const all = document.createElement("input");
     all.type = "checkbox";
     all.className = "h3-lora-toggle";
@@ -384,8 +411,16 @@ function mount(node) {
   const originalConfigure = node.onConfigure;
   node.onConfigure = function (...args) {
     originalConfigure?.apply(this, args);
+    if (escapePicker) window.removeEventListener("keydown", escapePicker, true);
+    escapePicker = null;
+    pickerOpen = false;
     rows = readRows(storage.value);
     draw();
+  };
+  const originalRemoved = node.onRemoved;
+  node.onRemoved = function (...args) {
+    if (escapePicker) window.removeEventListener("keydown", escapePicker, true);
+    originalRemoved?.apply(this, args);
   };
   refreshFiles().then(draw);
   draw();
