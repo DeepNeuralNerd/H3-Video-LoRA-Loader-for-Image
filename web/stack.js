@@ -41,6 +41,23 @@ function matchingNames(names, words) {
   });
 }
 
+function formatMetadata(data) {
+  const labels = {
+    name: "Embedded name",
+    ss_output_name: "Training output name",
+    ss_base_model_version: "Base model",
+    training_info: "Training info",
+    software: "Training software",
+  };
+  return Object.entries(data).map(([key, raw]) => {
+    let value = raw;
+    if (typeof value === "string" && /^[{\[]/.test(value.trim())) {
+      try { value = JSON.parse(value); } catch { /* Keep the original metadata. */ }
+    }
+    return `${labels[key] ?? key}: ${typeof value === "object" ? JSON.stringify(value, null, 2) : value}`;
+  }).join("\n\n");
+}
+
 async function refreshFiles() {
   try {
     const response = await api.fetchApi("/object_info/LoraLoaderModelOnly");
@@ -81,7 +98,8 @@ function mount(node) {
   let remembered = null;
   let templateOpen = false;
   let menuIndex = -1;
-  let infoIndex = -1;
+  let infoRow = null;
+  let infoName = "";
   let infoData = null;
   const createdAt = performance.now();
   let escapePicker = null;
@@ -91,7 +109,8 @@ function mount(node) {
     node.setDirtyCanvas(true, true);
     app.graph?.change();
   };
-  const resize = () => node.setSize([Math.max(node.size[0], 430), 145 + rows.length * 39 + (pickerOpen ? 280 : 0) + (templateOpen ? 110 : 0) + (menuIndex >= 0 ? 80 : 0) + (infoIndex >= 0 ? 160 : 0)]);
+  const infoOpen = () => infoRow && rows.includes(infoRow) && infoRow.name === infoName;
+  const resize = () => node.setSize([Math.max(node.size[0], 430), 145 + rows.length * 39 + (pickerOpen ? 280 : 0) + (templateOpen ? 110 : 0) + (menuIndex >= 0 ? 80 : 0) + (infoOpen() ? 160 : 0)]);
 
   const control = (label, title, action) => {
     const item = document.createElement("button");
@@ -136,16 +155,18 @@ function mount(node) {
 
   async function showInfo(index) {
     menuIndex = -1;
-    infoIndex = index;
-    infoData = null;
+    const row = rows[index];
+    if (!row?.name) return;
+    infoRow = row;
+    infoName = row.name;
+    infoData = undefined;
     draw();
-    const name = rows[index]?.name;
-    if (!name) return;
+    let data = null;
     try {
-      const response = await api.fetchApi(`/view_metadata/loras?filename=${encodeURIComponent(name)}`);
-      if (response.ok) infoData = await response.json();
+      const response = await api.fetchApi(`/view_metadata/loras?filename=${encodeURIComponent(infoName)}`);
+      if (response.ok) data = await response.json();
     } catch (error) { console.warn("H3 Image LoRA Stack: metadata unavailable", error); }
-    if (infoIndex === index && rows[index]?.name === name) draw();
+    if (infoRow === row && infoOpen()) { infoData = data; draw(); }
   }
 
   function drawPicker() {
@@ -293,7 +314,7 @@ function mount(node) {
       line.oncontextmenu = (event) => {
         event.preventDefault();
         menuIndex = menuIndex === index ? -1 : index;
-        infoIndex = -1;
+        infoRow = null;
         draw();
       };
       line.ondragover = (event) => { event.preventDefault(); line.classList.add("drag-over"); };
@@ -388,14 +409,16 @@ function mount(node) {
         );
         panel.append(menu);
       }
-      if (infoIndex === index) {
+      if (infoRow === row && infoOpen()) {
         const detail = document.createElement("div");
         detail.className = "h3-lora-detail";
         const heading = document.createElement("strong");
         heading.textContent = row.name || "No LoRA selected";
         const body = document.createElement("pre");
-        body.textContent = infoData ? JSON.stringify(infoData, null, 2) : "No embedded safetensors metadata found.";
-        detail.append(heading, body, control("Close", "Close LoRA info", () => { infoIndex = -1; draw(); }));
+        body.textContent = infoData === undefined ? "Loading metadata…" : infoData && Object.keys(infoData).length
+          ? `Embedded file metadata (may differ from filename; not a compatibility check):\n\n${formatMetadata(infoData)}`
+          : "No embedded safetensors metadata found.";
+        detail.append(heading, body, control("Close", "Close LoRA info", () => { infoRow = null; draw(); }));
         panel.append(detail);
       }
     });
@@ -406,7 +429,7 @@ function mount(node) {
   node.addDOMWidget("h3_lora_rows", "h3_lora_rows", panel, {
     serialize: false,
     hideOnZoom: false,
-    getMinHeight: () => 80 + rows.length * 39 + (pickerOpen ? 280 : 0) + (templateOpen ? 110 : 0) + (menuIndex >= 0 ? 80 : 0) + (infoIndex >= 0 ? 160 : 0),
+    getMinHeight: () => 80 + rows.length * 39 + (pickerOpen ? 280 : 0) + (templateOpen ? 110 : 0) + (menuIndex >= 0 ? 80 : 0) + (infoOpen() ? 160 : 0),
   }).serialize = false;
   const originalConfigure = node.onConfigure;
   node.onConfigure = function (...args) {
@@ -415,6 +438,7 @@ function mount(node) {
     escapePicker = null;
     pickerOpen = false;
     rows = readRows(storage.value);
+    infoRow = null;
     draw();
   };
   const originalRemoved = node.onRemoved;

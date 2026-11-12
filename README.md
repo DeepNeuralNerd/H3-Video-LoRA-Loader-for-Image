@@ -24,7 +24,7 @@ No additional Python packages are required beyond ComfyUI. The package uses Comf
 1. Load a **MiniMax H3-Image or H3 video** diffusion checkpoint in the matching image or video workflow.
 2. Add **H3 Image LoRA Stack** from `model/loaders/minimax`. For a single LoRA, you can also use **H3 Video LoRA for H3 Image**.
 3. Connect the checkpoint's `MODEL` output to the node's `model` input.
-4. Press **+ LoRA**, search and tick one or more files, then press **Add selected**. Click a row's file button to replace it, or drag it horizontally to scrub strength (hold Shift for finer changes). Type an exact strength or use the −/+ buttons in the same row. Enable or disable it with the checkbox, drag the grip to change application order, or right-click for row actions. The **i** button displays embedded safetensors metadata when available.
+4. Press **+ LoRA**, search and tick one or more files, then press **Add selected**. Click a row's file button to replace it, or drag it horizontally to scrub strength (hold Shift for finer changes). Type an exact strength or use the −/+ buttons in the same row. Enable or disable it with the checkbox, drag the grip to change application order, or right-click for row actions. The **i** button displays metadata embedded in that LoRA file when available. Embedded names may differ from filenames and do not establish compatibility.
 5. Connect the node's `MODEL` output wherever the checkpoint model was previously connected.
 6. The optional `STRING` output reports how many entries each enabled LoRA kept and removed. You can connect it to a text display node, or read the same summary in the ComfyUI log.
 
