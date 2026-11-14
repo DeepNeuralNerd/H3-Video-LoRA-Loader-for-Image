@@ -1,5 +1,7 @@
 # H3 Video LoRA for H3 Image
 
+[![release](https://img.shields.io/github/v/release/DeepNeuralNerd/=release&color=3E9EA0)](https://github.com/DeepNeuralNerd/H3-Video-LoRA-Loader-for-Image/releases) [![downloads](https://img.shields.io/github/downloads/DeepNeuralNerd/H3-Video-LoRA-Loader-for-Image/total?label=downloads&color=3E8E6A)](https://github.com/DeepNeuralNerd/H3-Video-LoRA-Loader-for-Image/releases)
+
 A ComfyUI loader for trying MiniMax H3 video LoRAs with **MiniMax H3-Image or H3 video**. With H3-Image, it removes LoRA entries for the absent audio branch and the differently sized final image output layer before ComfyUI applies the remaining entries. With an H3 video model, it keeps those entries. The original LoRA file and base model are not edited.
 
 This is a compatibility filter, not a conversion or retraining tool. A video LoRA can load cleanly and still have an undesirable effect on still images.
